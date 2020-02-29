@@ -1,3 +1,5 @@
+VIEW THIS A CODE, NOT MARKDOWN
+
 Only for educational purposes.
 
 This server is based on evaluation of Incapsula JS code in "virtual dom" polyfill.

@@ -1,67 +1,62 @@
-const http = require('http');
-const { evaluate } = require('./evaluate');
-const port = 8888;
-let indexNum = 0;
+const request = require('request-promise-native');
 
-var cluster = require('cluster');
-var numCPUs = require('os').cpus().length;  // SKOK TEBE NADO CPU TUT NAPISHI CHISLO - PO YMOLCHANIU MAX
+const {evaluate} = require('./evaluate');
 
-const server = http.createServer();
+const incapsulaLinkRegex = /"(\/_Incapsula_Resource.+?)"/;
 
-if (typeof atob === 'undefined') {
-  global.atob = function (b64Encoded) {
-    return new Buffer(b64Encoded, 'base64').toString('binary');
-  };
+async function getSite(uri) {
+	uri = uri.endsWith('/') ? uri : uri + '/';
+
+	const {body: incapsulaBody, headers: {'set-cookie': setCookies}} = await request({
+		uri,
+		resolveWithFullResponse: true
+	});
+
+	const initialCookies = setCookies.map(e => e.split(';')[0]).join(';');
+	const incapsulaLink = incapsulaLinkRegex.exec(incapsulaBody)[1];
+
+	if (incapsulaLink)
+		return handleIncapsula(uri, incapsulaLink, initialCookies);
+	return incapsulaBody;
 }
 
-const requestHandler = function (request, response) {
-	const {method, url} = request;
-	if (method === 'GET' && url === '/access') {
-		response.end('OK');
-	}
+async function handleIncapsula(uri, incapsulaLink, initialCookies) {
+	const baseUri = uri.split('/').slice(0, 3).join('/');
 
-    if (method === 'POST' && url === '/generate') {
+	const code = await request({
+		headers: {
+			'Cookie': initialCookies,
+			'Accept': '*/*',
+			'Referer': baseUri + '/'
+		},
+		uri: baseUri + incapsulaLink
+	});
 
-        let data = '';
-        request.on('data', function (chunk) {
-            data += chunk.toString();
-            if (data.length > 500 * 1000) request.abort();
-        });
+	const {cookies, imageSrc, userAgent} = await evaluate(code, initialCookies);
 
-        request.on('end', function () {
-            try {
-				data = atob(data);
-                const [ code, cookie, customConfig ] = data.split(';;;;;;');
-		
-                if (!code || !cookie) { response.end('Not enough Data'); return; }
-if(++indexNum % 200 === 0) {console.log('[R] ' + indexNum);}
+	const res = await request({
+		headers: {
+			'Cookie': cookies,
+			'User-Agent': userAgent,
+			'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+			'Referer': baseUri + '/'
+		},
+		uri: baseUri + imageSrc,
+		resolveWithFullResponse: true
+	});
 
-                evaluate(code, cookie, customConfig)
-                    .then(res => {
-							const newCookie = res['document.cookieStr'].split('; ').filter(val => {return val.indexOf('___utmvc=') != -1})[0];
-							//console.log(newCookie);
-							//console.log(res['document.cookieStr'].split('; '));
-							response.writeHead(200,{'set-cookie':newCookie}); response.end(JSON.stringify(res)) }
-						)
-					.catch(e => {console.log(e);response.end(e.message)});
-            } catch (e) {
-				console.log(e);
-                response.end(e.message)
-            }
-        });
-    }
+	const body = await request({
+		headers: {
+			'Cookie': cookies,
+			'User-Agent': userAgent,
+			'Referer': baseUri + '/'
+		},
+		uri
+	});
 
+	if (incapsulaLinkRegex.test(body))
+		return handleIncapsula(uri, incapsulaLinkRegex.exec(body)[1], initialCookies);
+	return body;
 }
-console.log("++++ Incapsula Bypass ++++");
 
-
-if (cluster.isMaster){
-
-  for (var i = 0; i< numCPUs; i++) cluster.fork();
-
-}else{
-	
-server.on('request', requestHandler);
-server.listen(port);
-
-}
+getSite('https://funimation.com').then(console.log);
