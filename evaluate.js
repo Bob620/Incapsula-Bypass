@@ -8,7 +8,7 @@ const configReader = require('./configReader.js');
 const injectOptions = {
 	//bindThisLastIIFE: true,
 	bindThisToEvalInsideDOMFunc: true,
-	bindThisToDOMFunc: false,
+	bindThisToDOMFunc: true,
 	//custom: [['(function(){','(()=>{']],
 	allFunctionToArrow: true
 };
@@ -87,9 +87,8 @@ function evaluateWithConfig(code, config, cookie) {
 	});
 
 	code = code.replace('return z', ';z=injectCode(z,injectOptions); return z');
+	code = insertData(code, code.lastIndexOf(')()'), '.bind(window)');
 
-	const bindIndex = code.lastIndexOf(')()');
-	code = insertData(code, bindIndex, '.bind(window)');
 	eval(code);
 
 	return {

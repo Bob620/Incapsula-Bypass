@@ -38,7 +38,7 @@ async function handleIncapsula(uri, incapsulaLink, initialCookies) {
 		headers: {
 			'Cookie': cookies,
 			'User-Agent': userAgent,
-			'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+			'Accept': 'image/webp,image/*,*/*;q=0.5',
 			'Referer': baseUri + '/'
 		},
 		uri: baseUri + imageSrc,
@@ -47,7 +47,7 @@ async function handleIncapsula(uri, incapsulaLink, initialCookies) {
 
 	const body = await request({
 		headers: {
-			'Cookie': cookies,
+			'Cookie': initialCookies + ';___utmvc=a',
 			'User-Agent': userAgent,
 			'Referer': baseUri + '/'
 		},

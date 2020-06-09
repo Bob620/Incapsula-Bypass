@@ -7,7 +7,7 @@ String.prototype.replaceAll = function (target, replacement) {
 };
 
 function injectCode(code, options) {
-	const {bindThisLastIIFE, allFunctionToArrow, bindThisToEvalInsideDOMFunc, custom} = options;
+	const {bindThisLastIIFE, allFunctionToArrow, bindThisToEvalInsideDOMFunc, custom, bindThisToDOMFunc} = options;
 
 	if (bindThisLastIIFE) {
 		const lastiife = code.lastIndexOf(';}}());') + ';}}'.length;
@@ -42,13 +42,14 @@ function injectCode(code, options) {
 		}
 	}
 
-/*
-	if (bindThisToDOMFunc) {
-		const iOfEndDOMFunc = code.lastIndexOf(')]();}var') + ')]();}'.length;
-		const nameOfDomFunc = code.match(/function ([0-9a-f_x]+)\([0-9a-f_x]+\)\{var [0-9a-f_x]+='';var [0-9a-f_x]+=new Array\(\)/)[1];
-		code = insertData(code, iOfEndDOMFunc, `;${nameOfDomFunc} = ${nameOfDomFunc}.bind(this);`);
-	}
-*/
+	if (bindThisToDOMFunc)
+		try {
+			const iOfEndDOMFunc = code.lastIndexOf(')]();}var') + ')]();}'.length;
+			const nameOfDomFunc = code.match(/function ([0-9a-f_x]+)\([0-9a-f_x]+\)\{var [0-9a-f_x]+='';var [0-9a-f_x]+=new Array\(\)/)[1];
+			code = insertData(code, iOfEndDOMFunc, `;${nameOfDomFunc} = ${nameOfDomFunc}.bind(this);`);
+		} catch (err) {
+			console.log(err);
+		}
 
 	if (custom && custom.length !== 0) {
 		custom.forEach(combination => {
